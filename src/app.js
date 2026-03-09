@@ -31,6 +31,9 @@ app.use((req, res, next) => {
 // ISSUE-0028: rate limiter missing in release
 
 // ISSUE-0035: /health endpoint missing in release
+app.get('/health', (req, res) => {
+  res.json({ status: 'ok', timestamp: new Date().toISOString() });
+});
 
 app.use('/users', users);
 app.use('/products', products);
