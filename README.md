@@ -37,3 +37,12 @@ npm run dev
 
 ## Release Issues
 See **ISSUES.md**. In `release`, issues are tagged in code as `ISSUE-####`.
+
+## Health Check
+
+GET /health
+
+Returns the service status and current timestamp.
+
+Example response:
+{ "status": "ok", "timestamp": "2026-03-09T00:00:00.000Z" }
