@@ -14,12 +14,12 @@ function signToken(user) {
 async function register(req, res) {
   const { email, name, password } = req.validated.body;
 
-  // ISSUE-0002: duplicate email allowed (no check)
+  // FIX-0002: check for duplicate email
+  const existing = await userModel.findByEmail(email);
+  if (existing) return apiError(res, 409, 'CONFLICT', 'Email already in use');
+
   // ISSUE-0001: password not hashed (stores plaintext into password_hash)
   const user = await userModel.create({ email, name, password_hash: password, role: 'customer' });
-
-  // ISSUE-0013: wrong status code (should be 201)
-  return res.status(200).json(user);
 }
 
 async function login(req, res) {
