@@ -1,5 +1,8 @@
+const morgan = require('morgan');
+
 require('dotenv').config();
 const express = require('express');
+app.use(morgan('dev'));
 const helmet = require('helmet');
 const cors = require('cors');
 
