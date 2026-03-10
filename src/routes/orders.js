@@ -1,12 +1,11 @@
 const express = require('express');
 const { z } = require('zod');
 const { validate } = require('../middleware/validate');
-const { auth } = require('../middleware/auth');
+const { auth } = require('../middleware/auth'); // restore auth
 const { create, list } = require('../controllers/orderController');
 
 const router = express.Router();
 
-// Schema for validating order creation
 const createSchema = z.object({
   body: z.object({
     items: z.array(z.object({
@@ -16,8 +15,7 @@ const createSchema = z.object({
   })
 });
 
-// Routes
-router.post('/', auth, validate(createSchema), create); // Create order
-router.get('/', auth, list); // List orders by user
+router.post('/', auth, validate(createSchema), create); // auth restored
+router.get('/', auth, list); // auth restored
 
 module.exports = router;

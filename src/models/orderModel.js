@@ -2,37 +2,50 @@ const { getConn } = require('../config/db');
 const { productModel } = require('./productModel');
 
 const orderModel = {
-  // ISSUE-0005: order total computed incorrectly (quantity ignored)
-  // ISSUE-0012: product stock not updated after order
+  // Create order with optimized product fetching
   async create(userId, items) {
-    let total = 0;
+    if (!items || !items.length) throw new Error('No items provided');
+
     const conn = await getConn();
     try {
       await conn.beginTransaction();
 
+      // Fetch all products in one query
+      const productIds = items.map(it => it.product_id);
+      const products = await productModel.findByIds(productIds);
+      const productMap = {};
+      products.forEach(p => productMap[p.id] = p);
+
+      let total = 0;
+
       for (const it of items) {
-        const p = await productModel.findById(it.product_id);
+        const p = productMap[it.product_id];
         if (!p) throw new Error(`Product not found: ${it.product_id}`);
-
-        // ISSUE-0009: missing robust validation for orders
-        if (it.quantity < 0) throw new Error(`Invalid quantity for product ${it.product_id}`);
-
+        if (it.quantity <= 0) throw new Error(`Invalid quantity for product ${it.product_id}`);
         total += Number(p.price) * it.quantity;
 
-        // BUG: stock not updated
+        // Update stock
+        const newStock = p.stock - it.quantity;
+        if (newStock < 0) throw new Error(`Insufficient stock for product ${p.name}`);
+        await conn.query(
+          `UPDATE products SET stock = ? WHERE id = ?`,
+          [newStock, p.id]
+        );
       }
 
+      // Insert order
       const [orderRes] = await conn.query(
         `INSERT INTO orders (user_id, total) VALUES (?, ?)`,
         [userId, total]
       );
       const orderId = orderRes.insertId;
 
+      // Insert order items
       for (const it of items) {
-        const p = await productModel.findById(it.product_id);
+        const p = productMap[it.product_id];
         await conn.query(
           `INSERT INTO order_items (order_id, product_id, quantity, unit_price) VALUES (?, ?, ?, ?)`,
-          [orderId, it.product_id, it.quantity, p.price]
+          [orderId, p.id, it.quantity, p.price]
         );
       }
 
@@ -46,11 +59,10 @@ const orderModel = {
     }
   },
 
-  // ISSUE-0034: Optimized product/order query to remove N+1 problem
+  // Optimized listing of orders per user (no N+1 queries)
   async listByUser(userId) {
     const conn = await getConn();
     try {
-      // Single JOIN query to get all orders + order items
       const [rows] = await conn.query(
         `SELECT 
             o.id AS order_id,
@@ -69,7 +81,6 @@ const orderModel = {
         [userId]
       );
 
-      // Group order items by order_id
       const grouped = {};
       for (const row of rows) {
         if (!grouped[row.order_id]) {
