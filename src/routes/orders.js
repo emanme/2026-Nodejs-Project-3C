@@ -6,6 +6,7 @@ const { create, list } = require('../controllers/orderController');
 
 const router = express.Router();
 
+// Schema for validating order creation
 const createSchema = z.object({
   body: z.object({
     items: z.array(z.object({
@@ -15,7 +16,8 @@ const createSchema = z.object({
   })
 });
 
-router.post('/', auth, create); // ISSUE-0020 + ISSUE-0009
-router.get('/', auth, list);
+// Routes
+router.post('/', auth, validate(createSchema), create); // Create order
+router.get('/', auth, list); // List orders by user
 
 module.exports = router;

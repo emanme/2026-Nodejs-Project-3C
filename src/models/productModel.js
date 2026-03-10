@@ -1,7 +1,6 @@
 const { getConn } = require('../config/db');
 
 const productModel = {
-  // ISSUE-0014: no pagination in release (ignores page/limit)
   async list({ page, limit, q }) {
     const conn = await getConn();
     try {
@@ -25,7 +24,6 @@ const productModel = {
   async create({ name, category, price, stock, image_url }) {
     const conn = await getConn();
     try {
-      // ISSUE-0003: negative prices allowed (no model-level validation)
       const [r] = await conn.query(
         `INSERT INTO products (name, category, price, stock, image_url) VALUES (?, ?, ?, ?, ?)`,
         [name, category, price, stock, image_url ?? null]

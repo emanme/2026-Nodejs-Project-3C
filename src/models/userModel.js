@@ -10,6 +10,7 @@ const userModel = {
       await conn.end();
     }
   },
+
   async findById(id) {
     const conn = await getConn();
     try {
@@ -19,6 +20,7 @@ const userModel = {
       await conn.end();
     }
   },
+
   async create({ email, name, password_hash, role }) {
     const conn = await getConn();
     try {

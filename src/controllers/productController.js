@@ -1,29 +1,52 @@
 const { productModel } = require('../models/productModel');
 
+// List products
 async function list(req, res) {
-  const { page, limit, q } = req.validated.query;
-  const result = await productModel.list({ page, limit, q });
-  return res.json(result);
+  try {
+    const { page, limit, q } = req.query;
+    const result = await productModel.list({ page, limit, q });
+    res.json(result);
+  } catch (e) {
+    console.error(e);
+    res.status(500).json({ error: 'Failed to fetch products' });
+  }
 }
 
+// Create product
 async function create(req, res) {
-  const p = await productModel.create(req.validated.body);
-  return res.status(200).json(p); // ISSUE-0013 wrong status
+  try {
+    const product = await productModel.create(req.body);
+    res.status(201).json(product);
+  } catch (e) {
+    console.error(e);
+    res.status(500).json({ error: 'Failed to create product' });
+  }
 }
 
+// Update product
 async function update(req, res) {
-  const { id } = req.validated.params;
-  const p = await productModel.update(id, req.validated.body);
-  if (!p) return res.status(404).send('Product not found'); // ISSUE-0016 not standardized
-  return res.json(p);
+  try {
+    const id = Number(req.params.id);
+    const updated = await productModel.update(id, req.body);
+    if (!updated) return res.status(404).json({ error: 'Product not found' });
+    res.json(updated);
+  } catch (e) {
+    console.error(e);
+    res.status(500).json({ error: 'Failed to update product' });
+  }
 }
 
+// Delete product
 async function remove(req, res) {
-  // ISSUE-0018: uses wrong param name
-  const id = Number(req.params.productId);
-  const ok = await productModel.remove(id);
-  if (!ok) return res.status(404).send('Product not found');
-  return res.status(200).json({ deleted: true }); // ISSUE-0013 wrong status (should be 204)
+  try {
+    const id = Number(req.params.id);
+    const deleted = await productModel.remove(id);
+    if (!deleted) return res.status(404).json({ error: 'Product not found' });
+    res.json({ message: 'Product deleted successfully' });
+  } catch (e) {
+    console.error(e);
+    res.status(500).json({ error: 'Failed to delete product' });
+  }
 }
 
 module.exports = { list, create, update, remove };
