@@ -37,3 +37,11 @@ npm run dev
 
 ## Release Issues
 See **ISSUES.md**. In `release`, issues are tagged in code as `ISSUE-####`.
+
+## Password Requirements
+
+When registering, passwords must meet the following rules:
+- Minimum 8 characters
+- At least one uppercase letter
+- At least one number
+- At least one special character (e.g. !@#$%)
