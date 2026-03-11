@@ -3,6 +3,7 @@
 > In the `release` branch, each issue is tagged in code as `ISSUE-####`.
 
 ## 35 issues
+
 0001 Password not hashed during registration (stores plaintext)
 0002 Duplicate email allowed on registration
 0003 Product price accepts negative values
@@ -38,3 +39,78 @@
 0033 Missing unit tests (minimum smoke tests)
 0034 Optimize product query (inefficient pattern)
 0035 Add health check endpoint (missing in release)
+
+## API Documentation
+
+### Base URL
+
+```
+http://localhost:3000
+```
+
+### Authentication
+
+Most endpoints require a JWT token in the header:
+
+```
+Authorization: Bearer <token>
+```
+
+---
+
+### Users
+
+| Method | Endpoint        | Description             | Auth |
+| ------ | --------------- | ----------------------- | ---- |
+| POST   | /users/register | Register a new user     | No   |
+| POST   | /users/login    | Login and get JWT token | No   |
+| GET    | /users/:id      | Get user by ID          | Yes  |
+
+---
+
+### Products
+
+| Method | Endpoint      | Description                                           | Auth |
+| ------ | ------------- | ----------------------------------------------------- | ---- |
+| GET    | /products     | Get all products (supports ?page=1&limit=10&q=search) | No   |
+| GET    | /products/:id | Get product by ID                                     | No   |
+| POST   | /products     | Create a new product                                  | Yes  |
+| PUT    | /products/:id | Update a product                                      | Yes  |
+| DELETE | /products/:id | Delete a product                                      | Yes  |
+
+---
+
+### Orders
+
+| Method | Endpoint    | Description        | Auth |
+| ------ | ----------- | ------------------ | ---- |
+| GET    | /orders     | Get all orders     | Yes  |
+| GET    | /orders/:id | Get order by ID    | Yes  |
+| POST   | /orders     | Create a new order | Yes  |
+
+---
+
+### Example Requests
+
+**Register:**
+
+```bash
+curl -X POST http://localhost:3000/users/register \
+  -H "Content-Type: application/json" \
+  -d '{"username":"john","email":"john@email.com","password":"pass123"}'
+```
+
+**Get Products with Pagination:**
+
+```bash
+curl "http://localhost:3000/products?page=1&limit=5"
+```
+
+**Create Product (with auth):**
+
+```bash
+curl -X POST http://localhost:3000/products \
+  -H "Authorization: Bearer <token>" \
+  -H "Content-Type: application/json" \
+  -d '{"name":"Laptop","category":"Electronics","price":999.99,"stock":10}'
+```
