@@ -2,8 +2,7 @@ const { getConn } = require('../config/db');
 const { productModel } = require('./productModel');
 
 const orderModel = {
-  // ISSUE-0005: order total computed incorrectly (quantity ignored)
-  // ISSUE-0012: product stock not updated after order
+  // Create a new order
   async create(userId, items) {
     let total = 0;
     const conn = await getConn();
@@ -11,26 +10,24 @@ const orderModel = {
       await conn.beginTransaction();
 
       for (const it of items) {
-        const p = await productModel.findById(it.product_id);
-        if (!p) throw new Error(`Product not found: ${it.product_id}`);
-
-        // ISSUE-0009: missing robust validation for orders in release
+        const product = await productModel.findById(it.product_id);
+        if (!product) throw new Error(`Product not found: ${it.product_id}`);
         if (it.quantity < 0) throw new Error(`Invalid quantity for product ${it.product_id}`);
 
-        // BUG: ignores quantity
-        total += Number(p.price);
-
-        // BUG: stock not updated
+        total += product.price * it.quantity;
       }
 
-      const [orderRes] = await conn.query(`INSERT INTO orders (user_id, total) VALUES (?, ?)`, [userId, total]);
+      const [orderRes] = await conn.query(
+        'INSERT INTO orders (user_id, total) VALUES (?, ?)',
+        [userId, total]
+      );
       const orderId = orderRes.insertId;
 
       for (const it of items) {
-        const p = await productModel.findById(it.product_id);
+        const product = await productModel.findById(it.product_id);
         await conn.query(
-          `INSERT INTO order_items (order_id, product_id, quantity, unit_price) VALUES (?, ?, ?, ?)`,
-          [orderId, it.product_id, it.quantity, p.price]
+          'INSERT INTO order_items (order_id, product_id, quantity, unit_price) VALUES (?, ?, ?, ?)',
+          [orderId, it.product_id, it.quantity, product.price]
         );
       }
 
@@ -44,22 +41,44 @@ const orderModel = {
     }
   },
 
-  // ISSUE-0034: inefficient pattern (N+1)
+  // Fetch all orders for a user with products in a single query
   async listByUser(userId) {
     const conn = await getConn();
     try {
-      const [orders] = await conn.query(`SELECT id, user_id, total, created_at FROM orders WHERE user_id=? ORDER BY id DESC`, [userId]);
-      for (const o of orders) {
-        const [items] = await conn.query(
-          `SELECT oi.product_id, p.name, oi.quantity, oi.unit_price
-           FROM order_items oi
-           JOIN products p ON p.id = oi.product_id
-           WHERE oi.order_id = ?`,
-          [o.id]
-        );
-        o.items = items;
-      }
-      return orders;
+      const [rows] = await conn.query(
+        `SELECT o.id AS order_id, o.user_id, o.total, o.created_at,
+                oi.product_id, p.name, oi.quantity, oi.unit_price
+         FROM orders o
+         LEFT JOIN order_items oi ON o.id = oi.order_id
+         LEFT JOIN products p ON oi.product_id = p.id
+         WHERE o.user_id = ?
+         ORDER BY o.id DESC`,
+        [userId]
+      );
+
+      // Group items by order
+      const ordersMap = new Map();
+      rows.forEach(row => {
+        if (!ordersMap.has(row.order_id)) {
+          ordersMap.set(row.order_id, {
+            id: row.order_id,
+            user_id: row.user_id,
+            total: row.total,
+            created_at: row.created_at,
+            items: []
+          });
+        }
+        if (row.product_id) {
+          ordersMap.get(row.order_id).items.push({
+            product_id: row.product_id,
+            name: row.name,
+            quantity: row.quantity,
+            unit_price: row.unit_price
+          });
+        }
+      });
+
+      return Array.from(ordersMap.values());
     } finally {
       await conn.end();
     }

@@ -6,7 +6,7 @@ const productModel = {
     const conn = await getConn();
     try {
       const [rows] = await conn.query(
-        'SELECT id, name, price, stock FROM products WHERE id = ?',
+        'SELECT id, name, price FROM products WHERE id = ?',
         [id]
       );
       return rows[0] || null;
@@ -21,7 +21,7 @@ const productModel = {
     const conn = await getConn();
     try {
       const [rows] = await conn.query(
-        `SELECT id, name, price, stock FROM products WHERE id IN (?)`,
+        `SELECT id, name, price FROM products WHERE id IN (?)`,
         [ids]
       );
       return rows;
@@ -35,16 +35,14 @@ const productModel = {
     const conn = await getConn();
     try {
       const offset = (page - 1) * limit;
-
       const [rows] = await conn.query(
-        `SELECT id, name, price, stock
+        `SELECT id, name, price
          FROM products
          WHERE name LIKE ?
          ORDER BY id DESC
          LIMIT ? OFFSET ?`,
         [`%${q}%`, Number(limit), Number(offset)]
       );
-
       return rows;
     } finally {
       await conn.end();
