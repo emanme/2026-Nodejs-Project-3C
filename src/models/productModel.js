@@ -1,7 +1,7 @@
 const { getConn } = require('../config/db');
 
 const productModel = {
-  // ISSUE-0014: no pagination in release (ignores page/limit)
+  // ISSUE-0014: fixed pagination - now uses page/limit in SQL query
   async list({ page, limit, q }) {
     const conn = await getConn();
     try {
@@ -9,14 +9,24 @@ const productModel = {
       const where = q ? 'WHERE name LIKE ? OR category LIKE ?' : '';
       const params = q ? [like, like] : [];
 
-      const [rows] = await conn.query(
-        `SELECT id, name, category, price, stock, image_url, created_at
-         FROM products ${where}
-         ORDER BY id DESC`,
+      const [[{ total }]] = await conn.query(
+        `SELECT COUNT(*) as total FROM products ${where}`,
         params
       );
 
-      return { page, limit, total: rows.length, items: rows };
+      const pageNum = Math.max(1, parseInt(page) || 1);
+      const limitNum = Math.max(1, parseInt(limit) || 10);
+      const offset = (pageNum - 1) * limitNum;
+
+      const [rows] = await conn.query(
+        `SELECT id, name, category, price, stock, image_url, created_at
+         FROM products ${where}
+         ORDER BY id DESC
+         LIMIT ? OFFSET ?`,
+        [...params, limitNum, offset]
+      );
+
+      return { page: pageNum, limit: limitNum, total, items: rows };
     } finally {
       await conn.end();
     }

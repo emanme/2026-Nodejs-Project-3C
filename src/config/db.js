@@ -5,8 +5,8 @@ const mysql = require('mysql2/promise');
 const CFG = {
   host: '127.0.0.1',
   port: 3306,
-  user: 'store_user',
-  password: 'store_pass',
+  user: 'root',
+  password: '',
   database: 'store_db',
 };
 
