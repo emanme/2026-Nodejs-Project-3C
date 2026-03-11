@@ -1,29 +1,105 @@
 const { productModel } = require('../models/productModel');
 
-async function list(req, res) {
-  const { page, limit, q } = req.validated.query;
-  const result = await productModel.list({ page, limit, q });
-  return res.json(result);
-}
+const productController = {
 
-async function create(req, res) {
-  const p = await productModel.create(req.validated.body);
-  return res.status(200).json(p); // ISSUE-0013 wrong status
-}
+  async list(req, res) {
+    try {
 
-async function update(req, res) {
-  const { id } = req.validated.params;
-  const p = await productModel.update(id, req.validated.body);
-  if (!p) return res.status(404).send('Product not found'); // ISSUE-0016 not standardized
-  return res.json(p);
-}
+      const page = parseInt(req.query.page) || 1;
+      const limit = parseInt(req.query.limit) || 10;
+      const q = req.query.q || '';
 
-async function remove(req, res) {
-  // ISSUE-0018: uses wrong param name
-  const id = Number(req.params.productId);
-  const ok = await productModel.remove(id);
-  if (!ok) return res.status(404).send('Product not found');
-  return res.status(200).json({ deleted: true }); // ISSUE-0013 wrong status (should be 204)
-}
+      const result = await productModel.list({ page, limit, q });
 
-module.exports = { list, create, update, remove };
+      res.json(result);
+
+    } catch (err) {
+      res.status(500).json({ error: err.message });
+    }
+  },
+
+  async create(req, res) {
+    try {
+
+      const { name, category, price, stock, image_url } = req.body;
+
+      const product = await productModel.create({
+        name,
+        category,
+        price,
+        stock,
+        image_url
+      });
+
+      res.status(201).json(product);
+
+    } catch (err) {
+      res.status(500).json({ error: err.message });
+    }
+  },
+
+  async update(req, res) {
+    try {
+
+      const id = req.params.id;
+
+      const { name, category, price, stock, image_url } = req.body;
+
+      const product = await productModel.update(id, {
+        name,
+        category,
+        price,
+        stock,
+        image_url
+      });
+
+      if (!product) {
+        return res.status(404).json({ message: "Product not found" });
+      }
+
+      res.json(product);
+
+    } catch (err) {
+      res.status(500).json({ error: err.message });
+    }
+  },
+
+  async remove(req, res) {
+    try {
+
+      const id = req.params.id;
+
+      const success = await productModel.remove(id);
+
+      if (!success) {
+        return res.status(404).json({ message: "Product not found" });
+      }
+
+      res.json({ message: "Product deleted" });
+
+    } catch (err) {
+      res.status(500).json({ error: err.message });
+    }
+  },
+
+  async findById(req, res) {
+    try {
+
+      const id = req.params.id;
+
+      const product = await productModel.findById(id);
+
+      if (!product) {
+        return res.status(404).json({ message: "Product not found" });
+      }
+
+      res.json(product);
+
+    } catch (err) {
+      res.status(500).json({ error: err.message });
+    }
+  }
+
+};
+
+module.exports = { productController };
