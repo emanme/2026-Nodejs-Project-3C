@@ -1,29 +1,21 @@
-// src/controllers/orderController.js
+const { apiError } = require('../utils/errors');
 const { orderModel } = require('../models/orderModel');
 
-// List orders for the logged-in user
-async function list(req, res) {
-  try {
-    const userId = req.user.id; // restore auth
-    const orders = await orderModel.listByUser(userId);
-    res.json(orders);
-  } catch (e) {
-    console.error(e);
-    res.status(500).json({ error: 'Failed to fetch orders' });
-  }
-}
-
-// Create a new order
 async function create(req, res) {
+  const { items } = req.validated.body;
+  if (!items.length) return apiError(res, 400, 'VALIDATION', 'Order items required');
+
   try {
-    const userId = req.user.id; // restore auth
-    const { items } = req.body;
-    const order = await orderModel.create(userId, items);
-    res.status(201).json(order);
+    const order = await orderModel.create(req.user.id, items);
+    return res.status(201).json(order);
   } catch (e) {
-    console.error(e);
-    res.status(400).json({ error: e.message });
+    return apiError(res, 400, 'ORDER', e.message || 'Order failed');
   }
 }
 
-module.exports = { list, create };
+async function list(req, res) {
+  const orders = await orderModel.listByUser(req.user.id);
+  return res.json({ orders });
+}
+
+module.exports = { create, list };
