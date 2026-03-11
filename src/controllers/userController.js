@@ -12,14 +12,19 @@ function signToken(user) {
 
 // ISSUE-0006: missing try/catch / weak error handling in release
 async function register(req, res) {
-  const { email, name, password } = req.validated.body;
+  try {
+    const { email, name, password } = req.validated.body;
 
-  // ISSUE-0002: duplicate email allowed (no check)
-  // ISSUE-0001: password not hashed (stores plaintext into password_hash)
-  const user = await userModel.create({ email, name, password_hash: password, role: 'customer' });
+    // ISSUE-0002: duplicate email allowed (no check)
+    // ISSUE-0001: password not hashed (stores plaintext into password_hash)
+    const user = await userModel.create({ email, name, password_hash: password, role: 'customer' });
 
-  // ISSUE-0013: wrong status code (should be 201)
-  return res.status(200).json(user);
+    // ISSUE-0013: wrong status code (should be 201)
+    return res.status(200).json(user);
+
+  } catch (error) {
+    return res.status(500).json({ message: 'Server error', error: error.message });
+  }
 }
 
 async function login(req, res) {
