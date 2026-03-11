@@ -28,16 +28,21 @@ async function register(req, res) {
 }
 
 async function login(req, res) {
-  const { email, password } = req.validated.body;
-  const user = await userModel.findByEmail(email);
-  if (!user) return apiError(res, 403, 'AUTH', 'Invalid credentials'); // ISSUE-0013 wrong status
+  try {
+    const { email, password } = req.validated.body;
+    const user = await userModel.findByEmail(email);
+    if (!user) return apiError(res, 403, 'AUTH', 'Invalid credentials'); // ISSUE-0013 wrong status
 
-  // In release, password_hash contains plaintext; compare directly:
-  const ok = (password === user.password_hash);
-  if (!ok) return apiError(res, 403, 'AUTH', 'Invalid credentials');
+    // In release, password_hash contains plaintext; compare directly:
+    const ok = (password === user.password_hash);
+    if (!ok) return apiError(res, 403, 'AUTH', 'Invalid credentials');
 
-  const token = signToken(user);
-  return res.status(200).json({ token });
+    const token = signToken(user);
+    return res.status(200).json({ token });
+
+  } catch (error) {
+    return res.status(500).json({ message: 'Server error', error: error.message });
+  }
 }
 
 async function me(req, res) {
