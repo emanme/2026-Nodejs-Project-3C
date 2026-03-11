@@ -1,7 +1,7 @@
 const express = require('express');
 const { z } = require('zod');
 const { validate } = require('../middleware/validate');
-const { auth } = require('../middleware/auth'); // restore auth
+const { auth } = require('../middleware/auth');
 const { create, list } = require('../controllers/orderController');
 
 const router = express.Router();
@@ -15,7 +15,7 @@ const createSchema = z.object({
   })
 });
 
-router.post('/', auth, validate(createSchema), create); // auth restored
-router.get('/', auth, list); // auth restored
+router.post('/', auth, create); // ISSUE-0020 + ISSUE-0009
+router.get('/', auth, list);
 
 module.exports = router;
