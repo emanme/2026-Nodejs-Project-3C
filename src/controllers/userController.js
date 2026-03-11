@@ -46,11 +46,16 @@ async function login(req, res) {
 }
 
 async function me(req, res) {
-  const user = await userModel.findById(req.user.id);
-  if (!user) return apiError(res, 404, 'NOT_FOUND', 'User not found');
+  try {
+    const user = await userModel.findById(req.user.id);
+    if (!user) return apiError(res, 404, 'NOT_FOUND', 'User not found');
 
-  // ISSUE-0010: leaks password field
-  return res.json(user);
+    // ISSUE-0010: leaks password field
+    return res.json(user);
+
+  } catch (error) {
+    return res.status(500).json({ message: 'Server error', error: error.message });
+  }
 }
 
 module.exports = { register, login, me };
