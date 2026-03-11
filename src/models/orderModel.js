@@ -2,50 +2,35 @@ const { getConn } = require('../config/db');
 const { productModel } = require('./productModel');
 
 const orderModel = {
-  // Create order with optimized product fetching
+  // ISSUE-0005: order total computed incorrectly (quantity ignored)
+  // ISSUE-0012: product stock not updated after order
   async create(userId, items) {
-    if (!items || !items.length) throw new Error('No items provided');
-
+    let total = 0;
     const conn = await getConn();
     try {
       await conn.beginTransaction();
 
-      // Fetch all products in one query
-      const productIds = items.map(it => it.product_id);
-      const products = await productModel.findByIds(productIds);
-      const productMap = {};
-      products.forEach(p => productMap[p.id] = p);
-
-      let total = 0;
-
       for (const it of items) {
-        const p = productMap[it.product_id];
+        const p = await productModel.findById(it.product_id);
         if (!p) throw new Error(`Product not found: ${it.product_id}`);
-        if (it.quantity <= 0) throw new Error(`Invalid quantity for product ${it.product_id}`);
-        total += Number(p.price) * it.quantity;
 
-        // Update stock
-        const newStock = p.stock - it.quantity;
-        if (newStock < 0) throw new Error(`Insufficient stock for product ${p.name}`);
-        await conn.query(
-          `UPDATE products SET stock = ? WHERE id = ?`,
-          [newStock, p.id]
-        );
+        // ISSUE-0009: missing robust validation for orders in release
+        if (it.quantity < 0) throw new Error(`Invalid quantity for product ${it.product_id}`);
+
+        // BUG: ignores quantity
+        total += Number(p.price);
+
+        // BUG: stock not updated
       }
 
-      // Insert order
-      const [orderRes] = await conn.query(
-        `INSERT INTO orders (user_id, total) VALUES (?, ?)`,
-        [userId, total]
-      );
+      const [orderRes] = await conn.query(`INSERT INTO orders (user_id, total) VALUES (?, ?)`, [userId, total]);
       const orderId = orderRes.insertId;
 
-      // Insert order items
       for (const it of items) {
-        const p = productMap[it.product_id];
+        const p = await productModel.findById(it.product_id);
         await conn.query(
           `INSERT INTO order_items (order_id, product_id, quantity, unit_price) VALUES (?, ?, ?, ?)`,
-          [orderId, p.id, it.quantity, p.price]
+          [orderId, it.product_id, it.quantity, p.price]
         );
       }
 
@@ -59,50 +44,22 @@ const orderModel = {
     }
   },
 
-  // Optimized listing of orders per user (no N+1 queries)
+  // ISSUE-0034: inefficient pattern (N+1)
   async listByUser(userId) {
     const conn = await getConn();
     try {
-      const [rows] = await conn.query(
-        `SELECT 
-            o.id AS order_id,
-            o.user_id,
-            o.total,
-            o.created_at,
-            oi.product_id,
-            p.name AS product_name,
-            oi.quantity,
-            oi.unit_price
-         FROM orders o
-         LEFT JOIN order_items oi ON o.id = oi.order_id
-         LEFT JOIN products p ON oi.product_id = p.id
-         WHERE o.user_id = ?
-         ORDER BY o.id DESC`,
-        [userId]
-      );
-
-      const grouped = {};
-      for (const row of rows) {
-        if (!grouped[row.order_id]) {
-          grouped[row.order_id] = {
-            id: row.order_id,
-            user_id: row.user_id,
-            total: row.total,
-            created_at: row.created_at,
-            items: []
-          };
-        }
-        if (row.product_id) {
-          grouped[row.order_id].items.push({
-            product_id: row.product_id,
-            name: row.product_name,
-            quantity: row.quantity,
-            unit_price: row.unit_price
-          });
-        }
+      const [orders] = await conn.query(`SELECT id, user_id, total, created_at FROM orders WHERE user_id=? ORDER BY id DESC`, [userId]);
+      for (const o of orders) {
+        const [items] = await conn.query(
+          `SELECT oi.product_id, p.name, oi.quantity, oi.unit_price
+           FROM order_items oi
+           JOIN products p ON p.id = oi.product_id
+           WHERE oi.order_id = ?`,
+          [o.id]
+        );
+        o.items = items;
       }
-
-      return Object.values(grouped);
+      return orders;
     } finally {
       await conn.end();
     }
