@@ -17,7 +17,7 @@ const listSchema = z.object({
 const upsertSchema = z.object({
   body: z.object({
     name: z.string().min(2),
-    category: z.string().min(1, { message: 'Category is required' }), // ISSUE-0025,
+    category: z.string().min(1, { message: 'Category is required' }).max(50, { message: 'Category must not exceed 50 characters' }), // ISSUE-0025,
     price: z.coerce.number(), // ISSUE-0003,
     stock: z.coerce.number().int().min(0),
     image_url: z.string().url().optional().nullable()
