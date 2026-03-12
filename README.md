@@ -37,3 +37,7 @@ npm run dev
 
 ## Release Issues
 See **ISSUES.md**. In `release`, issues are tagged in code as `ISSUE-####`.
+
+## Fix: ISSUE-0025
+- Product category field is now required
+- Category must be between 1 and 50 characters
