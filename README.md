@@ -24,16 +24,19 @@ npm run dev
 ```
 
 ## Main Endpoints
-- `POST /users/register`
-- `POST /users/login`
-- `GET /users/me`
-- `GET /products` (pagination + search)
-- `POST /products` (auth)
-- `PUT /products/:id` (auth)
-- `DELETE /products/:id` (auth)
-- `POST /orders` (auth)
-- `GET /orders` (auth)
-- `GET /health`
+All endpoints are prefixed with `/api/v1`:
+
+- `POST /api/v1/users/register`
+- `POST /api/v1/users/login`
+- `GET /api/v1/users/me`
+- `GET /api/v1/products` (pagination + search)
+- `POST /api/v1/products` (auth)
+- `PUT /api/v1/products/:id` (auth)
+- `DELETE /api/v1/products/:id` (auth)
+- `POST /api/v1/orders` (auth)
+- `GET /api/v1/orders` (auth)
+- `GET /api/v1/health`
 
 ## Release Issues
 See **ISSUES.md**. In `release`, issues are tagged in code as `ISSUE-####`.
+
