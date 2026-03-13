@@ -1,18 +1,17 @@
 // src/config/db.js
 import mysql from 'mysql2/promise';
 
-const pool = mysql.createPool({
-  host: '127.0.0.1',       // XAMPP localhost
-  user: 'store_user',       // MySQL user
-  password: '0013onita',    // MySQL password
-  database: 'simple_store', // Database name
-  multipleStatements: true  // Allow multiple CREATE TABLE statements
-});
+// Load environment variables
+const CFG = {
+  host: process.env.DB_HOST || '127.0.0.1',
+  port: process.env.DB_PORT || 3306,
+  user: process.env.DB_USER || 'store_user',
+  password: process.env.DB_PASS || 'store_pass',
+  database: process.env.DB_NAME || 'store_db',
+};
 
-// helper to get a connection from the pool
-export async function getConn() {
-  return pool.getConnection();
+async function getConn() {
+  return mysql.createConnection(CFG);
 }
 
-// export pool for queries if needed
-export { pool };
+module.exports = { getConn };

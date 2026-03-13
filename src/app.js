@@ -1,5 +1,10 @@
-// Load environment variables
-import 'dotenv/config';
+const morgan = require('morgan');
+
+require('dotenv').config();
+const express = require('express');
+app.use(morgan('dev'));
+const helmet = require('helmet');
+const cors = require('cors');
 
 // Imports
 import express from 'express';
@@ -26,6 +31,13 @@ app.use(express.json({ strict: true }));
 // ISSUE-0028: rate limiter missing in release
 
 // ISSUE-0035: /health endpoint missing in release
+app.get('/health', (req, res) => {
+  res.status(200).json({
+    status: 'ok',
+    timestamp: new Date().toISOString(),
+    environment: process.env.NODE_ENV || 'development'
+  });
+});
 
 app.use('/users', users);
 app.use('/products', products);

@@ -25,6 +25,7 @@ export const productModel = {
   async create({ name, category, price, stock, image_url }) {
     const conn = await getConn();
     try {
+      if (price <= 0) throw new Error('Price must be a positive number.');
       const [r] = await conn.query(
         `INSERT INTO products (name, category, price, stock, image_url) VALUES (?, ?, ?, ?, ?)`,
         [name, category, price, stock, image_url ?? null]
