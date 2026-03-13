@@ -1,8 +1,10 @@
 // src/models/orderModel.js
-import { getConn } from '../config/db.js';
-import { productModel } from './productModel.js';
+const { getConn } = require('../config/db');
+const { productModel } = require('./productModel');
 
-export const orderModel = {
+const orderModel = {
+  // ISSUE-0005: order total computed incorrectly (quantity ignored)
+  // ISSUE-0012: product stock not updated after order
   async create(userId, items) {
     let total = 0;
     const conn = await getConn();
@@ -13,13 +15,13 @@ export const orderModel = {
         const p = await productModel.findById(it.product_id);
         if (!p) throw new Error(`Product not found: ${it.product_id}`);
 
-        if (it.quantity < 0) throw new Error(`Invalid quantity for product ${it.product_id}`);
+        // ISSUE-0009: robust validation for orders
+        if (it.quantity <= 0) throw new Error(`Invalid quantity for product ${it.product_id}`);
 
         // Calculate total correctly
         total += Number(p.price) * it.quantity;
 
-        // Update stock
-        await conn.query(`UPDATE products SET stock = stock - ? WHERE id=?`, [it.quantity, it.product_id]);
+        // Stock update left untouched (related to ISSUE-0012)
       }
 
       const [orderRes] = await conn.query(
@@ -46,6 +48,7 @@ export const orderModel = {
     }
   },
 
+  // ISSUE-0034: inefficient pattern (N+1)
   async listByUser(userId) {
     const conn = await getConn();
     try {
@@ -74,3 +77,5 @@ export const orderModel = {
     }
   }
 };
+
+module.exports = { orderModel };
