@@ -1,120 +1,147 @@
 // src/controllers/userController.js
+
 import jwt from 'jsonwebtoken';
+import bcrypt from 'bcrypt';
 import { userModel } from '../models/userModel.js';
+import { apiError } from '../utils/errors.js';
 
 // Helper to sign JWT
 function signToken(user) {
-  if (!process.env.JWT_SECRET) throw new Error('JWT_SECRET is not set');
+  if (!process.env.JWT_SECRET) {
+    throw new Error('JWT_SECRET is not set');
+  }
+
   return jwt.sign(
-    { id: user.id, email: user.email, role: user.role },
-    process.env.JWT_SECRET
+    {
+      id: user.id,
+      email: user.email,
+      role: user.role
+    },
+    process.env.JWT_SECRET,
+    { expiresIn: '1h' }
   );
 }
 
-// Helper to send error responses consistently
-function sendError(res, code, statusText, message) {
-  return res.status(code).json({
-    status: statusText,
-    message
-  });
-}
-
 // -----------------------------
-// Controller Functions
+// Register User
 // -----------------------------
-
-// Register new user
 export async function register(req, res) {
-  const { email, name, password } = req.validated.body;
-
-  if (!email || !name || !password) {
-    return sendError(res, 400, "400 Bad Request", "Email, name, and password are required");
-  }
-
   try {
-    const user = await userModel.create({ email, name, password_hash: password, role: 'customer' });
+    const { email, name, password } = req.validated.body;
+
+    // check existing user
+    const existingUser = await userModel.findByEmail(email);
+    if (existingUser) {
+      return apiError(res, 400, 'AUTH', 'Email already exists');
+    }
+
+    // hash password
+    const password_hash = await bcrypt.hash(password, 10);
+
+    // create user
+    const user = await userModel.create({
+      email,
+      name,
+      password_hash,
+      role: 'customer'
+    });
+
+    // remove password before sending response
+    const { password_hash: _, ...safeUser } = user;
 
     return res.status(201).json({
       status: "201 Created",
-      data: {
-        id: user.id,
-        email: user.email,
-        name: user.name,
-        role: user.role,
-        created_at: user.created_at
-      }
+      data: safeUser
     });
-  } catch (err) {
-    console.error(err);
-    return sendError(res, 500, "500 Internal Server Error", "Server error");
+
+  } catch (error) {
+    console.error(error);
+    return apiError(res, 500, 'SERVER_ERROR', error.message);
   }
 }
 
-// Login user
+// -----------------------------
+// Login User
+// -----------------------------
 export async function login(req, res) {
-  const { email, password } = req.validated.body;
-
   try {
-    const user = await userModel.findByEmail(email);
-    if (!user) return sendError(res, 401, "401 Unauthorized", "Invalid credentials");
+    const { email, password } = req.validated.body;
 
-    const ok = password === user.password_hash; // plaintext in release
-    if (!ok) return sendError(res, 401, "401 Unauthorized", "Invalid credentials");
+    const user = await userModel.findByEmail(email);
+    if (!user) {
+      return apiError(res, 401, 'AUTH', 'Invalid credentials');
+    }
+
+    // compare hashed password
+    const ok = await bcrypt.compare(password, user.password_hash);
+    if (!ok) {
+      return apiError(res, 401, 'AUTH', 'Invalid credentials');
+    }
 
     const token = signToken(user);
+
     return res.status(200).json({
       status: "200 OK",
       token
     });
-  } catch (err) {
-    console.error(err);
-    return sendError(res, 500, "500 Internal Server Error", "Server error");
+
+  } catch (error) {
+    console.error(error);
+    return apiError(res, 500, 'SERVER_ERROR', error.message);
   }
 }
 
-// Get current authenticated user info
+// -----------------------------
+// Get Current User
+// -----------------------------
 export async function me(req, res) {
   try {
     const user = await userModel.findById(req.user.id);
-    if (!user) return sendError(res, 404, "404 Not Found", "User not found");
+
+    if (!user) {
+      return apiError(res, 404, 'NOT_FOUND', 'User not found');
+    }
+
+    // remove password
+    const { password_hash, ...safeUser } = user;
 
     return res.status(200).json({
       status: "200 OK",
-      data: {
-        id: user.id,
-        email: user.email,
-        name: user.name,
-        role: user.role,
-        created_at: user.created_at
-      }
+      data: safeUser
     });
-  } catch (err) {
-    console.error(err);
-    return sendError(res, 500, "500 Internal Server Error", "Server error");
+
+  } catch (error) {
+    console.error(error);
+    return apiError(res, 500, 'SERVER_ERROR', error.message);
   }
 }
 
-// Get user by ID
+// -----------------------------
+// Get User By ID
+// -----------------------------
 export async function getUserById(req, res) {
-  const id = Number(req.params.id);
-  if (isNaN(id)) return sendError(res, 400, "400 Bad Request", "Invalid user ID");
-
   try {
+    const id = Number(req.params.id);
+
+    if (isNaN(id)) {
+      return apiError(res, 400, 'BAD_REQUEST', 'Invalid user ID');
+    }
+
     const user = await userModel.findById(id);
-    if (!user) return sendError(res, 404, "404 Not Found", "User not found");
+
+    if (!user) {
+      return apiError(res, 404, 'NOT_FOUND', 'User not found');
+    }
+
+    const { password_hash, ...safeUser } = user;
 
     return res.status(200).json({
       status: "200 OK",
-      data: {
-        id: user.id,
-        name: user.name,
-        email: user.email,
-        role: user.role,
-        created_at: user.created_at
-      }
+      data: safeUser
     });
-  } catch (err) {
-    console.error(err);
-    return sendError(res, 500, "500 Internal Server Error", "Server error");
+
+  } catch (error) {
+    console.error(error);
+    return apiError(res, 500, 'SERVER_ERROR', error.message);
   }
 }
