@@ -1,7 +1,7 @@
-const { getConn } = require('../config/db');
+// src/models/productModel.js
+import { getConn } from '../config/db.js';
 
-const productModel = {
-  // ISSUE-0014: no pagination in release (ignores page/limit)
+export const productModel = {
   async list({ page, limit, q }) {
     const conn = await getConn();
     try {
@@ -72,5 +72,3 @@ const productModel = {
     }
   }
 };
-
-module.exports = { productModel };

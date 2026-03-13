@@ -1,6 +1,7 @@
 {
   "name": "simple-store-api",
   "version": "1.0.0",
+  "type": "module",
   "description": "Student Git Workflow Project (main=production, release=next version with 35 seeded issues).",
   "main": "src/app.js",
   "scripts": {
