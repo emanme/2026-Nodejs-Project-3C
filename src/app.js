@@ -32,9 +32,9 @@ app.use((req, res, next) => {
 
 // ISSUE-0035: /health endpoint missing in release
 
-app.use('/users', users);
-app.use('/products', products);
-app.use('/orders', orders);
+app.use('/api/v1/users', userRoutes);
+app.use('/api/v1/products', productRoutes);
+app.use('/api/v1/orders', orderRoutes);
 
 // ISSUE-0016/0030: error handling inconsistent and stack logging not improved
 app.use((err, req, res, next) => {
