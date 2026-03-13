@@ -1,33 +1,24 @@
-// src/models/userModel.js
-import { getConn } from '../config/db.js';
+const { getConn } = require('../config/db');
 
-export const userModel = {
+const userModel = {
   async findByEmail(email) {
     const conn = await getConn();
     try {
-      const [rows] = await conn.query(
-        'SELECT * FROM users WHERE email = ? LIMIT 1',
-        [email]
-      );
+      const [rows] = await conn.query('SELECT * FROM users WHERE email = ? LIMIT 1', [email]);
       return rows[0] || null;
     } finally {
       await conn.end();
     }
   },
-
   async findById(id) {
     const conn = await getConn();
     try {
-      const [rows] = await conn.query(
-        'SELECT * FROM users WHERE id = ? LIMIT 1',
-        [id]
-      );
+      const [rows] = await conn.query('SELECT * FROM users WHERE id = ? LIMIT 1', [id]);
       return rows[0] || null;
     } finally {
       await conn.end();
     }
   },
-
   async create({ email, name, password_hash, role }) {
     const conn = await getConn();
     try {
@@ -41,3 +32,5 @@ export const userModel = {
     }
   }
 };
+
+module.exports = { userModel };
