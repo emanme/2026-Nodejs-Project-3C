@@ -1,62 +1,147 @@
-const jwt = require('jsonwebtoken');
-const { apiError } = require('../utils/errors');
-const { userModel } = require('../models/userModel');
-const bcrypt = require('bcrypt'); // Added for hashing
+// src/controllers/userController.js
 
+import jwt from 'jsonwebtoken';
+import bcrypt from 'bcrypt';
+import { userModel } from '../models/userModel.js';
+import { apiError } from '../utils/errors.js';
+
+// Helper to sign JWT
 function signToken(user) {
+  if (!process.env.JWT_SECRET) {
+    throw new Error('JWT_SECRET is not set');
+  }
+
   return jwt.sign(
-    { id: user.id, email: user.email, role: user.role },
+    {
+      id: user.id,
+      email: user.email,
+      role: user.role
+    },
     process.env.JWT_SECRET,
-    { expiresIn: '1h' } // FIXED ISSUE-0011: Added expiration
+    { expiresIn: '1h' }
   );
 }
 
-async function register(req, res) {
-  try { // FIXED ISSUE-0006: Added try/catch
+// -----------------------------
+// Register User
+// -----------------------------
+export async function register(req, res) {
+  try {
     const { email, name, password } = req.validated.body;
 
-    // FIXED ISSUE-0002: Check for existing user
+    // check existing user
     const existingUser = await userModel.findByEmail(email);
-    if (existingUser) return apiError(res, 400, 'AUTH', 'Email already exists');
+    if (existingUser) {
+      return apiError(res, 400, 'AUTH', 'Email already exists');
+    }
 
-    // FIXED ISSUE-0001: Hash the password (using bcrypt)
-    const saltRounds = 10;
-    const password_hash = await bcrypt.hash(password, saltRounds);
+    // hash password
+    const password_hash = await bcrypt.hash(password, 10);
 
-    const user = await userModel.create({ email, name, password_hash, role: 'customer' });
+    // create user
+    const user = await userModel.create({
+      email,
+      name,
+      password_hash,
+      role: 'customer'
+    });
 
-    // FIXED ISSUE-0010: Do not return the password_hash in the response
-    const { password_hash: _, ...userResponse } = user;
+    // remove password before sending response
+    const { password_hash: _, ...safeUser } = user;
 
-    // FIXED ISSUE-0013: Changed status to 201 Created
-    return res.status(201).json(userResponse);
+    return res.status(201).json({
+      status: "201 Created",
+      data: safeUser
+    });
+
   } catch (error) {
+    console.error(error);
     return apiError(res, 500, 'SERVER_ERROR', error.message);
   }
 }
 
-async function login(req, res) {
-  const { email, password } = req.validated.body;
-  const user = await userModel.findByEmail(email);
-  
-  // FIXED ISSUE-0013: 401 is more appropriate for invalid credentials
-  if (!user) return apiError(res, 401, 'AUTH', 'Invalid credentials');
+// -----------------------------
+// Login User
+// -----------------------------
+export async function login(req, res) {
+  try {
+    const { email, password } = req.validated.body;
 
-  // FIXED: Use bcrypt.compare instead of plaintext comparison
-  const ok = await bcrypt.compare(password, user.password_hash);
-  if (!ok) return apiError(res, 401, 'AUTH', 'Invalid credentials');
+    const user = await userModel.findByEmail(email);
+    if (!user) {
+      return apiError(res, 401, 'AUTH', 'Invalid credentials');
+    }
 
-  const token = signToken(user);
-  return res.status(200).json({ token });
+    // compare hashed password
+    const ok = await bcrypt.compare(password, user.password_hash);
+    if (!ok) {
+      return apiError(res, 401, 'AUTH', 'Invalid credentials');
+    }
+
+    const token = signToken(user);
+
+    return res.status(200).json({
+      status: "200 OK",
+      token
+    });
+
+  } catch (error) {
+    console.error(error);
+    return apiError(res, 500, 'SERVER_ERROR', error.message);
+  }
 }
 
-async function me(req, res) {
-  const user = await userModel.findById(req.user.id);
-  if (!user) return apiError(res, 404, 'NOT_FOUND', 'User not found');
+// -----------------------------
+// Get Current User
+// -----------------------------
+export async function me(req, res) {
+  try {
+    const user = await userModel.findById(req.user.id);
 
-  // FIXED ISSUE-0010: Remove password before sending JSON
-  const { password_hash, ...safeUser } = user;
-  return res.json(safeUser);
+    if (!user) {
+      return apiError(res, 404, 'NOT_FOUND', 'User not found');
+    }
+
+    // remove password
+    const { password_hash, ...safeUser } = user;
+
+    return res.status(200).json({
+      status: "200 OK",
+      data: safeUser
+    });
+
+  } catch (error) {
+    console.error(error);
+    return apiError(res, 500, 'SERVER_ERROR', error.message);
+  }
 }
 
-module.exports = { register, login, me };
+// -----------------------------
+// Get User By ID
+// -----------------------------
+export async function getUserById(req, res) {
+  try {
+    const id = Number(req.params.id);
+
+    if (isNaN(id)) {
+      return apiError(res, 400, 'BAD_REQUEST', 'Invalid user ID');
+    }
+
+    const user = await userModel.findById(id);
+
+    if (!user) {
+      return apiError(res, 404, 'NOT_FOUND', 'User not found');
+    }
+
+    const { password_hash, ...safeUser } = user;
+
+    return res.status(200).json({
+      status: "200 OK",
+      data: safeUser
+    });
+
+  } catch (error) {
+    console.error(error);
+    return apiError(res, 500, 'SERVER_ERROR', error.message);
+  }
+}

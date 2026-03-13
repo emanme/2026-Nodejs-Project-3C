@@ -1,4 +1,5 @@
-const mysql = require('mysql2/promise');
+// src/config/db.js
+import mysql from 'mysql2/promise';
 
 // Load environment variables
 const CFG = {
