@@ -12,11 +12,17 @@ const createSchema = z.object({
   body: z.object({
     items: z.array(
       z.object({
-        product_id: z.coerce.number().int().min(1),
-        quantity: z.coerce.number().int().min(1)
-      })
-    ).min(1)
-  })
+        product_id: z.coerce.number({
+          required_error: "Product ID is required"
+        }).int().positive("Product ID must be a positive number"),
+
+        quantity: z.coerce.number({
+          required_error: "Quantity is required"
+        }).int().positive("Quantity must be at least 1")
+      }).strict()
+    )
+    .min(1, "Order must contain at least one item")
+  }).strict()
 });
 
 // Routes
