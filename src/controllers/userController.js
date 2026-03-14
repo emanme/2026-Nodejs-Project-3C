@@ -1,46 +1,147 @@
-const jwt = require('jsonwebtoken');
-const { apiError } = require('../utils/errors');
-const { userModel } = require('../models/userModel');
+// src/controllers/userController.js
 
+import jwt from 'jsonwebtoken';
+import bcrypt from 'bcrypt';
+import { userModel } from '../models/userModel.js';
+import { apiError } from '../utils/errors.js';
+
+// Helper to sign JWT
 function signToken(user) {
+  if (!process.env.JWT_SECRET) {
+    throw new Error('JWT_SECRET is not set');
+  }
+
   return jwt.sign(
-    { id: user.id, email: user.email, role: user.role },
+    {
+      id: user.id,
+      email: user.email,
+      role: user.role
+    },
     process.env.JWT_SECRET,
-    {} // ISSUE-0011: token never expires in release
+    { expiresIn: '1h' }
   );
 }
 
-// ISSUE-0006: missing try/catch / weak error handling in release
-async function register(req, res) {
-  const { email, name, password } = req.validated.body;
+// -----------------------------
+// Register User
+// -----------------------------
+export async function register(req, res) {
+  try {
+    const { email, name, password } = req.validated.body;
 
-  // FIX-0002: check for duplicate email
-  const existing = await userModel.findByEmail(email);
-  if (existing) return apiError(res, 409, 'CONFLICT', 'Email already in use');
+    // check existing user
+    const existingUser = await userModel.findByEmail(email);
+    if (existingUser) {
+      return apiError(res, 400, 'AUTH', 'Email already exists');
+    }
 
-  // ISSUE-0001: password not hashed (stores plaintext into password_hash)
-  const user = await userModel.create({ email, name, password_hash: password, role: 'customer' });
+    // hash password
+    const password_hash = await bcrypt.hash(password, 10);
+
+    // create user
+    const user = await userModel.create({
+      email,
+      name,
+      password_hash,
+      role: 'customer'
+    });
+
+    // remove password before sending response
+    const { password_hash: _, ...safeUser } = user;
+
+    return res.status(201).json({
+      status: "201 Created",
+      data: safeUser
+    });
+
+  } catch (error) {
+    console.error(error);
+    return apiError(res, 500, 'SERVER_ERROR', error.message);
+  }
 }
 
-async function login(req, res) {
-  const { email, password } = req.validated.body;
-  const user = await userModel.findByEmail(email);
-  if (!user) return apiError(res, 403, 'AUTH', 'Invalid credentials'); // ISSUE-0013 wrong status
+// -----------------------------
+// Login User
+// -----------------------------
+export async function login(req, res) {
+  try {
+    const { email, password } = req.validated.body;
 
-  // In release, password_hash contains plaintext; compare directly:
-  const ok = (password === user.password_hash);
-  if (!ok) return apiError(res, 403, 'AUTH', 'Invalid credentials');
+    const user = await userModel.findByEmail(email);
+    if (!user) {
+      return apiError(res, 401, 'AUTH', 'Invalid credentials');
+    }
 
-  const token = signToken(user);
-  return res.status(200).json({ token });
+    // compare hashed password
+    const ok = await bcrypt.compare(password, user.password_hash);
+    if (!ok) {
+      return apiError(res, 401, 'AUTH', 'Invalid credentials');
+    }
+
+    const token = signToken(user);
+
+    return res.status(200).json({
+      status: "200 OK",
+      token
+    });
+
+  } catch (error) {
+    console.error(error);
+    return apiError(res, 500, 'SERVER_ERROR', error.message);
+  }
 }
 
-async function me(req, res) {
-  const user = await userModel.findById(req.user.id);
-  if (!user) return apiError(res, 404, 'NOT_FOUND', 'User not found');
+// -----------------------------
+// Get Current User
+// -----------------------------
+export async function me(req, res) {
+  try {
+    const user = await userModel.findById(req.user.id);
 
-  // ISSUE-0010: leaks password field
-  return res.json(user);
+    if (!user) {
+      return apiError(res, 404, 'NOT_FOUND', 'User not found');
+    }
+
+    // remove password
+    const { password_hash, ...safeUser } = user;
+
+    return res.status(200).json({
+      status: "200 OK",
+      data: safeUser
+    });
+
+  } catch (error) {
+    console.error(error);
+    return apiError(res, 500, 'SERVER_ERROR', error.message);
+  }
 }
 
-module.exports = { register, login, me };
+// -----------------------------
+// Get User By ID
+// -----------------------------
+export async function getUserById(req, res) {
+  try {
+    const id = Number(req.params.id);
+
+    if (isNaN(id)) {
+      return apiError(res, 400, 'BAD_REQUEST', 'Invalid user ID');
+    }
+
+    const user = await userModel.findById(id);
+
+    if (!user) {
+      return apiError(res, 404, 'NOT_FOUND', 'User not found');
+    }
+
+    const { password_hash, ...safeUser } = user;
+
+    return res.status(200).json({
+      status: "200 OK",
+      data: safeUser
+    });
+
+  } catch (error) {
+    console.error(error);
+    return apiError(res, 500, 'SERVER_ERROR', error.message);
+  }
+}
