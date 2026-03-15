@@ -19,9 +19,9 @@ export const orderModel = {
         // Calculate total correctly
         release
         total += Number(p.price) * it.quantity;
-
+        
         // Update stock
-        await conn.query(`UPDATE products SET stock = stock - ? WHERE id=?`, [it.quantity, it.product_id]);
+        await conn.query(`UPDATE products SET stock = stock - ? WHERE id=?`, [it.quantity, it.product_id])
       }
 
       const [orderRes] = await conn.query(
