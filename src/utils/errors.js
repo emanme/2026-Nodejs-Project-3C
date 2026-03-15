@@ -1,4 +1,6 @@
-function apiError(res, status, code, message, details) {
-  return res.status(status).json({ error: { code, message, ...(details ? { details } : {}) } });
+// src/utils/errors.js
+export function apiError(res, status, code, message, details) {
+  return res.status(status).json({
+    error: { code, message, ...(details ? { details } : {}) }
+  });
 }
-module.exports = { apiError };
