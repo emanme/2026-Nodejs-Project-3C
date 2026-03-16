@@ -15,10 +15,9 @@ const orderModel = {
         const p = await productModel.findById(it.product_id);
         if (!p) throw new Error(`Product not found: ${it.product_id}`);
 
-        // ISSUE-0009: robust validation for orders
-        if (it.quantity <= 0) throw new Error(`Invalid quantity for product ${it.product_id}`);
 
         // Calculate total correctly
+        release
         total += Number(p.price) * it.quantity;
 
         // Stock update left untouched (related to ISSUE-0012)
