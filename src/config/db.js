@@ -9,3 +9,9 @@ const CFG = {
   password: process.env.DB_PASS || 'store_pass',
   database: process.env.DB_NAME || 'store_db',
 };
+
+async function getConn() {
+  return mysql.createConnection(CFG);
+}
+
+module.exports = { getConn };
